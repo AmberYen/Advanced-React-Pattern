@@ -4,7 +4,7 @@ import {BrowserRouter, Link} from 'react-router-dom'
 import loadable from 'react-loadable'
 
 const files = [
-  '01-hook',
+  '01',
   '02',
   '03',
   '04',
@@ -31,8 +31,15 @@ const pages = files.reduce((p, filename, index, fullArray) => {
     next: fullArray[index + 1],
     isolatedPath: `/isolated/exercises/${filename}`,
   })
+  const exerciseHook = require(`./exercises-hook/${filename}`)
+  Object.assign(exerciseHook, {
+    previous: fullArray[index - 1],
+    next: fullArray[index + 1],
+    isolatedPath: `/isolated/exercises-hook/${filename}`,
+  })
   p[filename] = {
     exercise,
+    exerciseHook,
     final,
     title: final.default.title,
   }
@@ -170,6 +177,7 @@ function NavigationFooter({exerciseId, type}) {
 function FullPage({type, match}) {
   const {exerciseId} = match.params
   const page = pages[exerciseId]
+  
   const {default: Usage, isolatedPath} = pages[exerciseId][type]
   return (
     <div>
@@ -259,6 +267,7 @@ function Home() {
               <Link to={`/${filename}`}>{title}</Link>{' '}
               <small>
                 <Link to={`/${filename}/exercise`}>(exercise)</Link>{' '}
+                <Link to={`/${filename}/exercise-hook`}>(exercise-hook)</Link>{' '}
                 <Link to={`/${filename}/final`}>(final)</Link>
               </small>
             </div>
@@ -285,6 +294,11 @@ function App() {
           exact={true}
         />
         <Route
+          path={`/:exerciseId/exercise-hook`}
+          render={props => <FullPage {...props} type="exerciseHook" />}
+          exact={true}
+        />
+        <Route
           path={`/:exerciseId/final`}
           render={props => <FullPage {...props} type="final" />}
           exact={true}
@@ -293,6 +307,11 @@ function App() {
           path={`/isolated/exercises/:moduleName`}
           exact={true}
           render={props => <Isolated {...props} type="exercise" />}
+        />
+        <Route
+          path={`/isolated/exercises-hook/:moduleName`}
+          exact={true}
+          render={props => <Isolated {...props} type="exercise-hook" />}
         />
         <Route
           path={`/isolated/exercises-final/:moduleName`}
