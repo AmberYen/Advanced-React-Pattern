@@ -5,26 +5,17 @@ import { useCallback, useState, useEffect, useRef } from 'react';
 
 import {Switch} from '../switch';
 
-function usePrevious(value) {
-  const ref = useRef();
-
-  useEffect(() => {
-    ref.current = value;
-  }, [value]);
-
-  return ref.current;
-}
-
 const useToggle = (onToggle) => {
   const [state, setState] = useState(false);
-  const preState = usePrevious(state);
+  const justMounted = useRef(true);
 
   const toggle = useCallback(() => setState(state => !state), []);
 
   useEffect(() => { 
-    if (preState !== undefined && preState !== state) {
+    if (!justMounted.current) {
       onToggle(state);
     }
+    justMounted.current = false
   }, [state]);
 
   return [state, toggle];
