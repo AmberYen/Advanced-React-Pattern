@@ -1,28 +1,35 @@
-// render props
+// prop collections
 
 import React from 'react'
 import {Switch} from '../switch'
 
-// we're back to basics here. Rather than compound components,
-// let's use a render prop!
-class Toggle extends React.Component {
-  state = {on: false}
-  toggle = () =>
-    this.setState(
-      ({on}) => ({on: !on}),
-      () => {
-        this.props.onToggle(this.state.on)
-      },
-    )
-  render() {
-    const {on} = this.state
-    // We want to give rendering flexibility, so we'll be making
-    // a change to our render prop component here.
-    // You'll notice the children prop in the Usage component
-    // is a function. 🐨 So you can replace this with a call this.props.children()
-    // But you'll need to pass it an object with `on` and `toggle`.
-    return <Switch on={on} onClick={this.toggle} />
+function useEffectAfterMount(cb, dependencies) {
+  const justMounted = React.useRef(true)
+  
+  React.useEffect(() => {
+    if (!justMounted.current) {
+      return cb()
+    }
+    justMounted.current = false
+  }, dependencies)
+}
+
+function Toggle(props) {
+  const [on, setOn] = React.useState(false)
+  const toggle = React.useCallback(() => setOn(oldOn => !oldOn), [])
+  
+  const getStateAndHelpers = () => {
+    return {
+      on,
+      toggle,
+      togglerProps: {
+        onClick: toggle,
+        "aria-pressed": on,
+      }
+    }
   }
+
+  return props.children(getStateAndHelpers())
 }
 
 // Don't make changes to the Usage component. It's here to show you how your
@@ -33,12 +40,11 @@ function Usage({
 }) {
   return (
     <Toggle onToggle={onToggle}>
-      {({on, toggle}) => (
+      {({on, togglerProps}) => (
         <div>
-          {on ? 'The button is on' : 'The button is off'}
-          <Switch on={on} onClick={toggle} />
+          <Switch on={on} {...togglerProps} />
           <hr />
-          <button aria-label="custom-button" onClick={toggle}>
+          <button aria-label="custom-button" {...togglerProps}>
             {on ? 'on' : 'off'}
           </button>
         </div>
@@ -46,6 +52,6 @@ function Usage({
     </Toggle>
   )
 }
-Usage.title = 'Render Props'
+Usage.title = 'Prop Collections'
 
 export {Toggle, Usage as default}

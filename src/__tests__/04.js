@@ -1,7 +1,8 @@
 import React from 'react'
 import {renderToggle, fireEvent} from '../../test/utils'
-//import Usage from '../exercises-final/04'
+// import Usage from '../exercises-final/04'
 import Usage from '../exercises/04'
+// import Usage from '../exercises-hook/04'
 
 test('renders a toggle component', () => {
   const handleToggle = jest.fn()
