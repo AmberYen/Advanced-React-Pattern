@@ -6,46 +6,49 @@ import {Switch} from '../switch'
 const callAll = (...fns) => (...args) =>
   fns.forEach(fn => fn && fn(...args))
 
-class Toggle extends React.Component {
-  // 🐨 We're going to need some static defaultProps here to allow
-  // people to pass a `initialOn` prop.
-  //
-  // 🐨 Rather than initializing state to have on as false,
-  // set on to this.props.initialOn
-  state = {on: false}
 
-  // 🐨 now let's add a reset method here that resets the state
-  // to the initial state. Then add a callback that calls
-  // this.props.onReset with the `on` state.
-  toggle = () =>
-    this.setState(
-      ({on}) => ({on: !on}),
-      () => this.props.onToggle(this.state.on),
-    )
-  getTogglerProps = ({onClick, ...props} = {}) => {
-    return {
-      'aria-pressed': this.state.on,
-      onClick: callAll(onClick, this.toggle),
-      ...props,
+function useEffectAfterMount(cb, dependencies) {
+  const justMounted = React.useRef(true)
+  
+  React.useEffect(() => {
+    if (!justMounted.current) {
+      return cb()
     }
-  }
-  getStateAndHelpers() {
-    return {
-      on: this.state.on,
-      toggle: this.toggle,
-      // 🐨 now let's include the reset method here
-      // so folks can use that in their implementation.
-      getTogglerProps: this.getTogglerProps,
-    }
-  }
-  render() {
-    return this.props.children(this.getStateAndHelpers())
-  }
+    justMounted.current = false
+  }, dependencies)
 }
 
-// Don't make changes to the Usage component. It's here to show you how your
-// component is intended to be used and is used in the tests.
-// You can make all the tests pass by updating the Toggle component.
+function Toggle(props) {
+  const initialOn = false;
+  const [on, setOn] = React.useState(false)
+  const toggle = React.useCallback(() => setOn(oldOn => !oldOn), [])
+
+  const getTogglerProps = ({onClick, ...props} = {}) => ({
+    onClick: callAll(onClick, toggle),
+    'aria-pressed': on,
+    ...props,
+  })
+
+  const reset = () =>
+    setOn(initialOn)
+    props.onReset(initialOn)
+
+  useEffectAfterMount(() => {
+    props.onToggle(on)
+  }, [on])
+  
+  const getStateAndHelpers = () => {
+    return {
+      on,
+      toggle,
+      reset,
+      getTogglerProps,
+    }
+  }
+
+  return props.children(getStateAndHelpers())
+}
+
 function Usage({
   initialOn = false,
   onToggle = (...args) => console.log('onToggle', ...args),
