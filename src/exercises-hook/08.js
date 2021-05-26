@@ -2,6 +2,7 @@
 
 import React from 'react'
 import {Switch} from '../switch'
+import {useStateWithCallback}  from './utils';
 
 const callAll = (...fns) => (...args) =>
   fns.forEach(fn => fn && fn(...args))
@@ -19,49 +20,67 @@ function useEffectAfterMount(cb, dependencies) {
 }
 
 function Toggle(props) {
-  const initialOn = false;
-  const [on, setOn] = React.useState(false)
-  const toggle = React.useCallback(() => internalSetState(oldOn => !oldOn, setOn), [])
-
-  const internalSetState = (changes, callback) => {
-    callback(state => {
-      const changesObject =
-        typeof changes === 'function' ? changes(state) : changes
-      // apply state reducer
-      const reducedChanges =
-        props.stateReducer({}, changesObject) || {}
-
-      // return null if there are no changes to be made
-      // (to avoid an unecessary rerender)
-      console.log('reducedChanges', reducedChanges);
-      return reducedChanges;
-    });
+  const initialState = {
+    on: props.initialOn
   }
 
-  const getTogglerProps = ({onClick, ...props} = {}) => ({
-    onClick: callAll(onClick, toggle),
-    'aria-pressed': on,
-    ...props,
-  })
+  const [{ on }, setState] = useStateWithCallback(initialState);
 
-  const reset = () =>
-    internalSetState({on: initialOn}, setOn);
-    props.onReset(initialOn)
+  const internalSetState = React.useCallback(
+    (changes, callback) => {
+      setState(prevState => {
+        return [changes]
+          .map(c => typeof c === 'function' ? c(prevState): c)
+          .map(c => props.stateReducer(prevState, c) || {})
+          .map(c => Object.keys(c).length ? c : null)[0];
+      }, callback);
+    }, 
+    [props.stateReducer]
+  )
 
-  useEffectAfterMount(() => {
-    props.onToggle(on);
-  }, [on])
-  
-  const getStateAndHelpers = () => {
-    return {
+  const reset = React.useCallback(
+    () => {
+      internalSetState(
+        initialState, 
+        (prevState, state) => {
+          props.onReset(state.on)
+        }
+      )
+    },
+    [initialState, props.onReset, internalSetState]
+  )
+
+  const toggle = React.useCallback(
+    () => {
+      internalSetState(prevState => ({ 
+        ...prevState,
+        on: !on
+      }), 
+      (prevState, state) => props.onToggle(state.on))
+    },
+    [on, internalSetState, props.onToggle],
+  )
+
+  const getTogglerProps = React.useCallback(
+    ({ onClick, ...props } = {}) => ({
+      'aria-pressed': on,
+      onClick: callAll(onClick, toggle),
+      ...props,
+    }), 
+    [on, toggle]
+  );
+
+  const getStateAndProps = React.useCallback(
+    () => ({
       on,
-      toggle,
       reset,
+      toggle,
       getTogglerProps,
-    }
-  }
+    }), 
+    [on, reset, toggle, getTogglerProps],
+  )
 
-  return props.children(getStateAndHelpers())
+  return props.children(getStateAndProps())
 }
 
 function Usage({
@@ -69,7 +88,6 @@ function Usage({
   onToggle = (...args) => console.log('onToggle', ...args),
   onReset = (...args) => console.log('onReset', ...args),
 }) {
-  const initialState = 0
   const [timesClicked, setTimesClicked] = React.useState(0);
   
   const handleToggle = (...args) => {
@@ -77,7 +95,7 @@ function Usage({
     onToggle(...args)
   }
   const handleReset = (...args) => {
-    setTimesClicked(initialState)
+    setTimesClicked(initialOn)
     onReset(...args)
   }
   const toggleStateReducer = (state, changes) => {

@@ -6,21 +6,50 @@ import {Switch} from '../switch'
 const callAll = (...fns) => (...args) =>
   fns.forEach(fn => fn && fn(...args))
 
+// Render props allow users to be in control over the UI based on state.
+// State reducers allow users to be in control over logic based on actions.
+// This idea is similar to redux, but only coincidentally.
+//
+// The basic idea is that any time there's an internal change in state, we
+// first call a stateReducer prop with the current state and the changes.
+// Whatever is returned is what we use in our setState call.
+// This allows users of the component to return the changes they received
+// or to modify the changes as they need.
+//
+// What this means for our implementation is that we can create a single
+// function that does all the work before calling setState. Then we can
+// replace all calls to setState with that function.
+//
+// Learn more about the state reducers pattern here:
+// https://blog.kentcdodds.com/b40316cfac57
+
 class Toggle extends React.Component {
   static defaultProps = {
     initialOn: false,
     onReset: () => {},
-    stateReducer: (state, changes) => changes,
+    stateReducer: () => {},
+    // 🐨 let's add a default stateReducer here. It should return
+    // the changes object as it is passed.
   }
   initialState = {on: this.props.initialOn}
   state = this.initialState
+  internalSetState(changes, callback) {
+    this.setState(state => {
+      // handle function setState call
+      const changesObject =
+        typeof changes === 'function' ? changes(state) : changes
 
-  internalSetState = (updater, callback) =>
-    this.setState((currentState) => {
-      const changesObject = typeof updater === 'function' ? updater(this.state, currentState) : currentState;
-      const reducedChanges = this.props.stateReducer(currentState, changesObject);
-      return Object.keys(reducedChanges).length ? reducedChanges : null;
+      // apply state reducer
+      const reducedChanges =
+        this.props.stateReducer(state, changesObject) || {}
+
+      // return null if there are no changes to be made
+      // (to avoid an unecessary rerender)
+      return Object.keys(reducedChanges).length
+        ? reducedChanges
+        : null
     }, callback)
+  }
   reset = () =>
     this.internalSetState(this.initialState, () =>
       this.props.onReset(this.state.on),
@@ -48,9 +77,6 @@ class Toggle extends React.Component {
   }
 }
 
-// Don't make changes to the Usage component. It's here to show you how your
-// component is intended to be used and is used in the tests.
-// You can make all the tests pass by updating the Toggle component.
 class Usage extends React.Component {
   static defaultProps = {
     onToggle: (...args) => console.log('onToggle', ...args),
